@@ -3,7 +3,13 @@ import {MyImagesHandler} from "./myimages";
 
 export function activate(context: vscode.ExtensionContext) {
 
-	let imagesHandler = new MyImagesHandler(vscode.workspace.workspaceFolders[0].uri);
+	var folderUri!: vscode.Uri;
+
+	if(vscode.workspace.workspaceFolders){
+		folderUri = vscode.workspace.workspaceFolders[0].uri;
+	}
+
+	let imagesHandler = new MyImagesHandler(folderUri);
 
 	let variableCmd = vscode.commands.registerCommand('opencv-image.imagevariable', async (variableObject) =>{
 		// Variable is clicked

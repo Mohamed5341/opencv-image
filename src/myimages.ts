@@ -58,18 +58,23 @@ export class MyImagesHandler{
         const session = vscode.debug.activeDebugSession;
         if(session){
             const response = await session.customRequest('variables', {variablesReference: varRef});
-            const currentImg = new MyImage(response, this.savingLocation, varName);
+            const currentImg = new MyImage(response, this.savingLocation, varName, varRef);
 
-            const loc = this.checkImageExists(currentImg);
-
-            if(loc === -1){
-                this.imagesList.push(currentImg);
+            if(currentImg.valid){
+                const loc = this.checkImageExists(currentImg);
+    
+                if(loc === -1){
+                    this.imagesList.push(currentImg);
+                }else{
+                    this.imagesList[loc] = currentImg;
+                }
+    
+                await currentImg.readImageFromMemory();
+                currentImg.showImage();
             }else{
-                this.imagesList[loc] = currentImg;
+                vscode.window.showWarningMessage("Please Initialize variable.");
             }
 
-            await currentImg.readImageFromMemory();
-            currentImg.showImage();
         }
     }
 
@@ -103,9 +108,10 @@ class MyImage{
     imagePath!: vscode.Uri;
     imageSaved: boolean = false;
     variableName: string = "";
+    valid: boolean = false;
 
 
-    constructor(response: any, folderPath: vscode.Uri, varname: string){
+    constructor(response: any, folderPath: vscode.Uri, varname: string, varRef: number){
         if("variables" in response){
             const varVal = response.variables;
 
@@ -135,11 +141,16 @@ class MyImage{
                 }
             });
 
-            this.imagePath = vscode.Uri.joinPath(folderPath, varname + ".jpg");
+            this.imagePath = vscode.Uri.joinPath(folderPath, varname + "_" + varRef + ".jpg");
 
             this.variableName = varname;
 
             this.type = this.flags&0xFFF;
+            if(this.dims !== 0 && this.cols !== 0 && this.rows !== 0){
+                this.valid = true;
+                return;
+            }
+            
         }
     }
 

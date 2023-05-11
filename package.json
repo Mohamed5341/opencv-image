@@ -1,8 +1,13 @@
 {
   "name": "opencv-image",
-  "displayName": "opencv_image",
-  "description": "",
-  "version": "0.0.1",
+  "displayName": "OpenCV C++ Image",
+  "description": "This is a simple extension to display opencv images while c++ debugging.",
+  "version": "0.0.2",
+  "publisher": "SimpleToolsDev",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mohamed5341/opencv-image.git"
+  },
   "engines": {
     "vscode": "^1.78.0"
   },
@@ -22,7 +27,7 @@
       "debug/variables/context": [
         {
           "when": "resourceLangId == cpp",
-          "command": "opencv-image.normalVariable",
+          "command": "opencv-image.imagevariable",
           "group": "3_compare"
         }
       ]
@@ -50,6 +55,6 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
-    "jimp": "^0.22.7"
+    "jimp": "^0.22.8"
   }
 }
