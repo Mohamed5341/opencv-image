@@ -70,9 +70,6 @@ export class MyImagesHandler{
                 }
     
                 await currentImg.readImageFromMemory();
-                if(currentImg.imageSaved){
-                    currentImg.showImage();
-                }
             }else{
                 vscode.window.showWarningMessage("Please Initialize variable.");
             }
@@ -185,6 +182,7 @@ class MyImage{
                     }else{
                         image.write(this.imagePath.fsPath);
                         this.imageSaved = true;
+                        this.showImage();
                     }
                 });
             }else{
