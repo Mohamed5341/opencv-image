@@ -16,10 +16,14 @@ export function activate(context: vscode.ExtensionContext) {
 		const varName = variableObject.variable.name; 
 		const varref = variableObject.variable.variablesReference;
 		
+		vscode.debug.activeDebugConsole.appendLine("*************************************************************");
+		vscode.debug.activeDebugConsole.appendLine("Selected variable is: " + variableObject + " with name " + varName);
+
 		imagesHandler.addImage(varName, varref);
 	});
 
 	vscode.debug.onDidTerminateDebugSession(e => {
+		vscode.debug.activeDebugConsole.appendLine("debugging is terminated");
 		imagesHandler.deleteAllImages();
 	});
 
