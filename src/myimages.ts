@@ -70,7 +70,9 @@ export class MyImagesHandler{
                 }
     
                 await currentImg.readImageFromMemory();
-                currentImg.showImage();
+                if(currentImg.imageSaved){
+                    currentImg.showImage();
+                }
             }else{
                 vscode.window.showWarningMessage("Please Initialize variable.");
             }
@@ -131,10 +133,10 @@ class MyImage{
                         this.cols = parseInt(element.value);
                         break;
                     case 'datastart':
-                        this.startAddress = element.value;
+                        this.startAddress = this.getHexFromString(element.value);
                         break;
                     case 'dataend':
-                        this.endAddress = element.value;
+                        this.endAddress = this.getHexFromString(element.value);
                         break;
                     default:
                         break;
@@ -143,7 +145,7 @@ class MyImage{
 
             this.imagePath = vscode.Uri.joinPath(folderPath, varname + "_" + varRef + ".jpg");
 
-            this.variableName = varname;
+            this.variableName = varname + "_" + varRef;
 
             this.type = this.flags&0xFFF;
             if(this.dims !== 0 && this.cols !== 0 && this.rows !== 0){
@@ -178,8 +180,12 @@ class MyImage{
                 }
 
                 await new Jimp({data: imgBuffer, width: this.cols, height: this.rows}, (error, image) => {    
-                    image.write(this.imagePath.fsPath);
-                    this.imageSaved = true;
+                    if(error){
+                        vscode.window.showErrorMessage("Error parsing image from buffer");
+                    }else{
+                        image.write(this.imagePath.fsPath);
+                        this.imageSaved = true;
+                    }
                 });
             }else{
                 vscode.window.showErrorMessage("Error Handling image");
@@ -204,6 +210,26 @@ class MyImage{
     private decodeImage(responseBuffer: string): Buffer{
         let inputBuffer = Buffer.from(responseBuffer, 'base64');
         let result = Buffer.alloc(1);
+
+        return result;
+    }
+
+    private getHexFromString(str: string): string{
+        let result = "";
+        const hexChars = "0123456789ABCDEFabcdef";
+
+        if(str.charAt(0) === '0' && str.charAt(1).toLowerCase() === 'x'){
+            result = "0x";
+            for(var i = 2; i < str.length; i++){
+                if(hexChars.includes(str.charAt(i))){
+                    result += str.charAt(i);
+                }else{
+                    break;
+                }
+            }
+        }else{
+            result = "0x00";
+        }
 
         return result;
     }
