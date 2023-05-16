@@ -54,7 +54,7 @@ export class MyImagesHandler{
         this.savingLocation = path;
     }
 
-    async addImage(varName: string, varRef: number){
+    async addImage(varName: string, varRef: number, showMat: boolean){
         const session = vscode.debug.activeDebugSession;
         if(session){
             const response = await session.customRequest('variables', {variablesReference: varRef});
@@ -69,7 +69,7 @@ export class MyImagesHandler{
                     this.imagesList[loc] = currentImg;
                 }
     
-                await currentImg.readImageFromMemory();
+                await currentImg.readImageFromMemory(showMat);
             }else{
                 vscode.window.showWarningMessage("Please Initialize variable.");
             }
@@ -108,6 +108,7 @@ class MyImage{
     imageSaved: boolean = false;
     variableName: string = "";
     valid: boolean = false;
+    numberOfChannels: number = 0;
 
 
     constructor(response: any, folderPath: vscode.Uri, varname: string, varRef: number){
@@ -147,6 +148,9 @@ class MyImage{
             this.type = this.flags&0xFFF;
             if(this.dims !== 0 && this.cols !== 0 && this.rows !== 0){
                 this.valid = true;
+
+                const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
+                this.numberOfChannels = numberOfBytes/(this.cols*this.rows);
                 return;
             }
             
@@ -155,17 +159,16 @@ class MyImage{
 
 
 
-    async readImageFromMemory(){
+    async readImageFromMemory(viewMat: boolean){
         const session = vscode.debug.activeDebugSession;
-        let imgBuffer;
+        let imgBuffer: any;
 
         if(session){
             const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
-            const numberOfChannels: number = numberOfBytes/(this.cols*this.rows);
             const response = await session.customRequest('readMemory', {memoryReference: this.startAddress, offset: 0, count: numberOfBytes});
-            if(numberOfChannels === 3){
+            if(this.numberOfChannels === 3){
                 imgBuffer = Buffer.from(response.data, 'base64');
-            }else if(numberOfChannels === 1){
+            }else if(this.numberOfChannels === 1){
                 imgBuffer = this.getImageFromGrayscale(response.data);
             }
 
@@ -176,13 +179,18 @@ class MyImage{
                     imgBuffer[i+2] = temp;
                 }
 
-                await new Jimp({data: imgBuffer, width: this.cols, height: this.rows}, (error, image) => {    
+                await new Jimp({data: imgBuffer, width: this.cols, height: this.rows}, (error: any, image: any) => {    
                     if(error){
                         vscode.window.showErrorMessage("Error parsing image from buffer");
                     }else{
                         image.write(this.imagePath.fsPath);
                         this.imageSaved = true;
-                        this.showImage();
+                        if(viewMat){
+                            const panel = vscode.window.createWebviewPanel("imageMat", this.variableName, vscode.ViewColumn.Two);
+                            panel.webview.html = this.getHtml(panel.webview.asWebviewUri(this.imagePath), imgBuffer);
+                        }else{
+                            this.showImage();
+                        }
                     }
                 });
             }else{
@@ -200,6 +208,112 @@ class MyImage{
             result[3*i+1] = grayBuff[i];
             result[3*i+2] = grayBuff[i];
         }
+
+        return result;
+    }
+
+    private getHtml(imgUri: vscode.Uri, dataBuffer: any): string{
+        let tablesString = "";
+        let channels = [];
+        if(this.numberOfChannels === 1){
+            channels.push("grayscale");
+        }else if(this.numberOfChannels === 3){
+            channels.push("red");
+            channels.push("green");
+            channels.push("blue");
+        }
+        
+        //tablesString += "<h2> channel # </h2>".replace("#", channels[k]);
+        tablesString += "<table>";
+        tablesString += "<thead><tr><th>#</th>";
+        for(var i1 = 0; i1 < this.cols; i1++){
+            tablesString += "<th>" + i1 + "</th>";
+        }
+        tablesString += "</tr></thead><tbody>";
+        for(var j = 0; j < this.rows; j++){
+            tablesString += '<tr><th>' + j + '</th>';
+            for(var i = 0; i < this.cols; i++){
+                //tablesString += dataBuffer.toString;
+                switch(this.numberOfChannels){
+                    case 3:
+                        tablesString += "<td>(" + dataBuffer[this.numberOfChannels*(j*this.cols + i) + 2] + 
+                                "," + dataBuffer[this.numberOfChannels*(j*this.cols + i) + 1] + 
+                                "," + dataBuffer[this.numberOfChannels*(j*this.cols + i)] + ")</td>";
+                        break;
+                    case 1:
+                        tablesString += "<td>" + dataBuffer[this.numberOfChannels*(j*this.cols + i)] + "</td>";
+                        break;
+                }
+            }
+            tablesString += "</tr>";
+        }
+
+        tablesString += "</tbody></table>";
+        //vscode.debug.activeDebugConsole.appendLine();
+    
+        let result = `<!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Display image matrix</title>
+            <style>
+                table {
+                    font-size: 125%;
+                    white-space: nowrap;
+                    margin: 0;
+                    border: none;
+                    border-collapse: separate;
+                    border-spacing: 0;
+                    table-layout: fixed;
+                    border: 1px solid black;
+                }
+                table td,
+                table th {
+                    border: 1px solid black;
+                    padding: 0.5rem 1rem;
+                }
+                table thead th {
+                    padding: 3px;
+                    position: sticky;
+                    top: 0;
+                    z-index: 1;
+                    width: 25vw;
+                    background: white;
+                }
+                table td {
+                    background: #fff;
+                    padding: 4px 5px;
+                    text-align: center;
+                }
+                
+                table tbody th {
+                    font-weight: 100;
+                    font-style: italic;
+                    text-align: left;
+                    position: relative;
+                }
+                table thead th:first-child {
+                    position: sticky;
+                    left: 0;
+                    z-index: 2;
+                }
+                table tbody th {
+                    position: sticky;
+                    left: 0;
+                    background: white;
+                    z-index: 1;
+                }
+            </style>
+        </head>
+        <body>
+            <h1>Image</h1>
+            <img src="${imgUri}" width="300" />
+            <h1>Image Matrix</h1>
+            <p style="font-size:160%;">Image is ${this.rows}x${this.cols}x${this.numberOfChannels}</p>
+            ${tablesString}
+        </body>
+        </html>`;
 
         return result;
     }

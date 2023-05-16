@@ -2,7 +2,7 @@
   "name": "opencv-image",
   "displayName": "OpenCV C++ Image",
   "description": "This is a simple extension to display opencv images while c++ debugging.",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "SimpleToolsDev",
   "repository": {
     "type": "git",
@@ -27,6 +27,10 @@
       {
         "command": "opencv-image.imagevariable",
         "title": "Show Image"
+      },{
+        "command": "opencv-image.imagematrix",
+        "title": "Show Image Matrix",
+        "enablement": "inDebugMode"
       }
     ],
     "menus": {
@@ -34,6 +38,10 @@
         {
           "when": "resourceLangId == cpp",
           "command": "opencv-image.imagevariable",
+          "group": "3_compare"
+        },{
+          "when": "resourceLangId == cpp",
+          "command": "opencv-image.imagematrix",
           "group": "3_compare"
         }
       ]

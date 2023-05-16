@@ -16,7 +16,14 @@ export function activate(context: vscode.ExtensionContext) {
 		const varName = variableObject.variable.name; 
 		const varref = variableObject.variable.variablesReference;
 		
-		imagesHandler.addImage(varName, varref);
+		imagesHandler.addImage(varName, varref, false);
+	});
+
+	let variableCmd2 = vscode.commands.registerCommand('opencv-image.imagematrix', async (variableObject) =>{
+		const varName = variableObject.variable.name; 
+		const varref = variableObject.variable.variablesReference;
+		
+		imagesHandler.addImage(varName, varref, true);
 	});
 
 	vscode.debug.onDidTerminateDebugSession(e => {
@@ -24,6 +31,7 @@ export function activate(context: vscode.ExtensionContext) {
 	});
 
 	context.subscriptions.push(variableCmd);
+	context.subscriptions.push(variableCmd2);
 }
 
 // This method is called when your extension is deactivated
