@@ -1,5 +1,11 @@
 # What's New?
 
+## 0.0.9
+
+Features Added:
+- Support different types of matrcies.
+- Add option to display image matrix only.
+
 ## 0.0.8
 
 Feature Added:

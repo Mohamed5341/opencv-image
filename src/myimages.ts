@@ -1,50 +1,7 @@
 import * as vscode from 'vscode';
 import * as Jimp from 'jimp';
-
-
-enum ImagesTypes {
-    NONE = -1,
-    CV_8U = 0,
-    CV_8S = 1,
-    CV_16U = 2,
-    CV_16S = 3,
-    CV_32S = 4,
-    CV_32F = 5,
-    CV_64F = 6,
-    CV_16F = 7,
-    CV_8UC1 = 0,
-    CV_8UC2 = 8,
-    CV_8UC3 = 16,
-    CV_8UC4 = 24,
-    CV_8SC1 = 1,
-    CV_8SC2 = 9,
-    CV_8SC3 = 17,
-    CV_8SC4 = 25,
-    CV_16UC1 = 2,
-    CV_16UC2 = 10,
-    CV_16UC3 = 18,
-    CV_16UC4 = 26,
-    CV_16SC1 = 3,
-    CV_16SC2 = 11,
-    CV_16SC3 = 19,
-    CV_16SC4 = 27,
-    CV_32SC1 = 4,
-    CV_32SC2 = 12,
-    CV_32SC3 = 20,
-    CV_32SC4 = 28,
-    CV_32FC1 = 5,
-    CV_32FC2 = 13,
-    CV_32FC3 = 21,
-    CV_32FC4 = 29,
-    CV_64FC1 = 6,
-    CV_64FC2 = 14,
-    CV_64FC3 = 22,
-    CV_64FC4 = 30,
-    CV_16FC1 = 7,
-    CV_16FC2 = 15,
-    CV_16FC3 = 23,
-    CV_16FC4 = 31,
-}
+import * as cv from '@techstark/opencv-js';
+import * as fs from 'fs';
 
 export class MyImagesHandler{
     savingLocation: vscode.Uri;
@@ -54,7 +11,7 @@ export class MyImagesHandler{
         this.savingLocation = path;
     }
 
-    async addImage(varName: string, varRef: number, showMat: boolean){
+    async addImage(varName: string, varRef: number, showImage: boolean, showMat: boolean){
         const session = vscode.debug.activeDebugSession;
         if(session){
             const response = await session.customRequest('variables', {variablesReference: varRef});
@@ -69,7 +26,7 @@ export class MyImagesHandler{
                     this.imagesList[loc] = currentImg;
                 }
     
-                await currentImg.readImageFromMemory(showMat);
+                await currentImg.readImageFromMemory(showImage, showMat);
             }else{
                 vscode.window.showWarningMessage("Please Initialize variable.");
             }
@@ -97,7 +54,7 @@ export class MyImagesHandler{
 }
 
 class MyImage{
-    type: ImagesTypes = ImagesTypes.NONE;
+    type: any = cv.CV_8U;
     flags: number = 0;
     dims: number = 0;
     cols: number = 0;
@@ -109,6 +66,9 @@ class MyImage{
     variableName: string = "";
     valid: boolean = false;
     numberOfChannels: number = 0;
+    elementSize: number = 0;
+    signed: boolean = false;
+    isFloat: boolean = false;
 
 
     constructor(response: any, folderPath: vscode.Uri, varname: string, varRef: number){
@@ -149,108 +109,111 @@ class MyImage{
             if(this.dims !== 0 && this.cols !== 0 && this.rows !== 0){
                 this.valid = true;
 
+
+                if(this.type === cv.CV_8U || this.type === cv.CV_8UC1 || this.type === cv.CV_8UC2 || this.type === cv.CV_8UC3 || this.type === cv.CV_8UC4){
+                    this.elementSize = 1;
+                    this.signed = false;
+                    this.isFloat = false;
+                }else if(this.type === cv.CV_8S || this.type === cv.CV_8SC1 || this.type === cv.CV_8SC2 || this.type === cv.CV_8SC3 || this.type === cv.CV_8SC4){
+                    this.elementSize = 1;
+                    this.signed = true;
+                    this.isFloat = false;
+                }else if(this.type === cv.CV_16U || this.type === cv.CV_16UC1 || this.type === cv.CV_16UC2 || this.type === cv.CV_16UC3 || this.type === cv.CV_16UC4){
+                    this.elementSize = 2;
+                    this.signed = false;
+                    this.isFloat = false;
+                }else if(this.type === cv.CV_16S || this.type === cv.CV_16SC1 || this.type === cv.CV_16SC2 || this.type === cv.CV_16SC3 || this.type === cv.CV_16SC4){
+                    this.elementSize = 2;
+                    this.signed = true;
+                    this.isFloat = false;
+                }else if(this.type === cv.CV_32S || this.type === cv.CV_32SC1 || this.type === cv.CV_32SC2 || this.type === cv.CV_32SC3 || this.type === cv.CV_32SC4){
+                    this.elementSize = 4;
+                    this.signed = true;
+                    this.isFloat = false;
+                }else if(this.type === cv.CV_32F || this.type === cv.CV_32FC1 || this.type === cv.CV_32FC2 || this.type === cv.CV_32FC3 || this.type === cv.CV_32FC4){
+                    this.elementSize = 4;
+                    this.signed = true;
+                    this.isFloat = true;
+                }else if(this.type === cv.CV_64F || this.type === cv.CV_64FC1 || this.type === cv.CV_64FC2 || this.type === cv.CV_64FC3 || this.type === cv.CV_64FC4){
+                    this.elementSize = 8;
+                    this.signed = true;
+                    this.isFloat = true;
+                }
+
                 const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
-                this.numberOfChannels = numberOfBytes/(this.cols*this.rows);
+                if(this.elementSize !== 0){
+                    this.numberOfChannels = numberOfBytes/(this.cols*this.rows*this.elementSize);
+                }
                 return;
             }
             
         }
     }
 
-
-
-    async readImageFromMemory(viewMat: boolean){
+    async readImageFromMemory(viewImage: boolean, viewMat: boolean){
         const session = vscode.debug.activeDebugSession;
-        let imgBuffer: any;
 
         if(session){
-            const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
-            const response = await session.customRequest('readMemory', {memoryReference: this.startAddress, offset: 0, count: numberOfBytes});
-            if(this.numberOfChannels === 3){
-                imgBuffer = Buffer.from(response.data, 'base64');
-            }else if(this.numberOfChannels === 1){
-                imgBuffer = this.getImageFromGrayscale(response.data);
-            }
-
-            if(imgBuffer){
-                for(var i = 0; i < imgBuffer.length; i+=3 ){
-                    let temp = imgBuffer[i];
-                    imgBuffer[i] = imgBuffer[i+2];
-                    imgBuffer[i+2] = temp;
-                }
-
-                await new Jimp({data: imgBuffer, width: this.cols, height: this.rows}, (error: any, image: any) => {    
-                    if(error){
-                        vscode.window.showErrorMessage("Error parsing image from buffer");
-                    }else{
-                        image.write(this.imagePath.fsPath);
-                        this.imageSaved = true;
-                        if(viewMat){
-                            const panel = vscode.window.createWebviewPanel("imageMat", this.variableName, vscode.ViewColumn.Two);
-                            panel.webview.html = this.getHtml(panel.webview.asWebviewUri(this.imagePath), imgBuffer);
-                        }else{
-                            this.showImage();
-                        }
+            try{
+                const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
+                const response = await session.customRequest('readMemory', {memoryReference: this.startAddress, offset: 0, count: numberOfBytes});
+                let imageArray: number[] = this.decodeImage(response.data);
+                
+    
+                if(viewImage && viewMat){
+                    let imageSrc = cv.matFromArray(this.rows, this.cols, this.type, imageArray);
+                    if(this.numberOfChannels === 1){
+                        cv.cvtColor(imageSrc, imageSrc, cv.COLOR_GRAY2RGB);
                     }
-                });
-            }else{
-                vscode.window.showErrorMessage("Error Handling image");
-            }
-        }
-    }
+                    new Jimp({width: this.cols, height: this.rows, data: Buffer.from(imageSrc.data)}).write(this.imagePath.fsPath);
+                    imageSrc.delete();
+                    this.imageSaved = true;
 
-    private getImageFromGrayscale(grayBuffer: string): Buffer{
-        const grayBuff = Buffer.from(grayBuffer, 'base64');
-        var result = Buffer.alloc(grayBuff.length*3);;
-        
-        for(var i = 0; i < grayBuff.length; i++ ){
-            result[3*i] = grayBuff[i];
-            result[3*i+1] = grayBuff[i];
-            result[3*i+2] = grayBuff[i];
-        }
-
-        return result;
-    }
-
-    private getHtml(imgUri: vscode.Uri, dataBuffer: any): string{
-        let tablesString = "";
-        let channels = [];
-        if(this.numberOfChannels === 1){
-            channels.push("grayscale");
-        }else if(this.numberOfChannels === 3){
-            channels.push("red");
-            channels.push("green");
-            channels.push("blue");
-        }
-        
-        //tablesString += "<h2> channel # </h2>".replace("#", channels[k]);
-        tablesString += "<table>";
-        tablesString += "<thead><tr><th>#</th>";
-        for(var i1 = 0; i1 < this.cols; i1++){
-            tablesString += "<th>" + i1 + "</th>";
-        }
-        tablesString += "</tr></thead><tbody>";
-        for(var j = 0; j < this.rows; j++){
-            tablesString += '<tr><th>' + j + '</th>';
-            for(var i = 0; i < this.cols; i++){
-                //tablesString += dataBuffer.toString;
-                switch(this.numberOfChannels){
-                    case 3:
-                        tablesString += "<td>(" + dataBuffer[this.numberOfChannels*(j*this.cols + i) + 2] + 
-                                "," + dataBuffer[this.numberOfChannels*(j*this.cols + i) + 1] + 
-                                "," + dataBuffer[this.numberOfChannels*(j*this.cols + i)] + ")</td>";
-                        break;
-                    case 1:
-                        tablesString += "<td>" + dataBuffer[this.numberOfChannels*(j*this.cols + i)] + "</td>";
-                        break;
+                    const panel = vscode.window.createWebviewPanel("imageMat", this.variableName, vscode.ViewColumn.Two);
+                    panel.webview.html = this.getHtml(panel.webview.asWebviewUri(this.imagePath), imageArray, true);
+                }else if(viewImage){
+                    let imageSrc = cv.matFromArray(this.rows, this.cols, this.type, imageArray);
+                    if(this.numberOfChannels === 1){
+                        cv.cvtColor(imageSrc, imageSrc, cv.COLOR_GRAY2RGB);
+                    }
+                    new Jimp({width: this.cols, height: this.rows, data: Buffer.from(imageSrc.data)}).write(this.imagePath.fsPath);
+                    this.imageSaved = true;
+                    this.showImage();
+                    imageSrc.delete();
+                }else if(viewMat){
+                    const panel = vscode.window.createWebviewPanel("imageMat", this.variableName, vscode.ViewColumn.Two);
+                    panel.webview.html = this.getHtml(panel.webview.asWebviewUri(this.imagePath), imageArray, false);
                 }
+            }catch(e: any){
+                vscode.window.showErrorMessage("Error Handling image" + e);
             }
-            tablesString += "</tr>";
+        }
+    }
+
+    private getHtml(imgUri: vscode.Uri, dataBuffer: number[], showImage: boolean): string{
+        let tablesString = "";
+        
+        tablesString += "<table><thead><tr><th>#</th><th>" + Array.from({length: this.cols}, (value, index) => index).join("</th><th>") + "</th></tr></thead><tbody>";
+        
+        for(var j = 0; j < this.rows; j++){
+            
+            const currentRawStartIndex = j*this.cols;
+            const currentRawEndIndex = currentRawStartIndex + this.cols*this.numberOfChannels;
+            let rowElements = [];
+            for(var i = currentRawStartIndex; i < currentRawEndIndex; i += this.numberOfChannels){
+                rowElements.push(dataBuffer.slice(i, i+this.numberOfChannels).join(','));
+            }
+            tablesString += '<tr><th>' + j + '</th><td>' + rowElements.join("</td><td>") + "</td></tr>";
         }
 
         tablesString += "</tbody></table>";
         //vscode.debug.activeDebugConsole.appendLine();
     
+        let imageTag = "";
+        if(showImage){
+            imageTag = `<h1>Image</h1><img src="${imgUri}"/>`;
+        }
+
         let result = `<!DOCTYPE html>
         <html lang="en">
         <head>
@@ -307,8 +270,7 @@ class MyImage{
             </style>
         </head>
         <body>
-            <h1>Image</h1>
-            <img src="${imgUri}" width="300" />
+            ${imageTag}
             <h1>Image Matrix</h1>
             <p style="font-size:160%;">Image is ${this.rows}x${this.cols}x${this.numberOfChannels}</p>
             ${tablesString}
@@ -319,11 +281,42 @@ class MyImage{
     }
 
 
-    private decodeImage(responseBuffer: string): Buffer{
+    private decodeImage(responseBuffer: string): number[]{
+        let initialized = false;
+        let result: number[] = new Array<number>(this.numberOfChannels*this.rows*this.cols).fill(0);
         let inputBuffer = Buffer.from(responseBuffer, 'base64');
-        let result = Buffer.alloc(1);
 
-        return result;
+        if(this.isFloat){
+            if(this.elementSize === 4){
+                for(var i = 0; i < result.length; i++){
+                    result[i] = inputBuffer.readFloatLE(i*this.elementSize);
+                }
+                initialized = true;
+            }else if(this.elementSize === 8){
+                for(var i = 0; i < result.length; i++){
+                    result[i] = inputBuffer.readDoubleLE(i*this.elementSize);
+                }
+                initialized = true;
+            }
+        }else
+        {
+            if(this.signed){
+                for(var i = 0; i < result.length; i++){
+                    result[i] = inputBuffer.readIntLE(i*this.elementSize, this.elementSize);
+                }
+                initialized = true;
+            }else{
+                for(var i = 0; i < result.length; i++){
+                    result[i] = inputBuffer.readUIntLE(i*this.elementSize, this.elementSize);
+                }
+                initialized = true;
+            }
+        }
+
+        if(initialized){
+            return result;
+        }
+        return [];
     }
 
     private getHexFromString(str: string): string{
@@ -351,7 +344,13 @@ class MyImage{
     }
 
     deleteImage(){
-        vscode.workspace.fs.delete(this.imagePath);
+        try{
+            if(fs.existsSync(this.imagePath.fsPath)){
+                vscode.workspace.fs.delete(this.imagePath);
+            }
+        }catch{
+
+        }
     }
 }
 

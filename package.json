@@ -2,7 +2,7 @@
   "name": "opencv-image",
   "displayName": "OpenCV C++ Image",
   "description": "This is a simple extension to display opencv images while c++ debugging.",
-  "version": "0.0.8",
+  "version": "0.0.9",
   "publisher": "SimpleToolsDev",
   "repository": {
     "type": "git",
@@ -20,16 +20,24 @@
     "OpenCV",
     "debug"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onDebug"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "opencv-image.imagevariable",
+        "command": "opencv-image.image",
         "title": "Show Image"
-      },{
-        "command": "opencv-image.imagematrix",
-        "title": "Show Image Matrix",
+      },
+      {
+        "command": "opencv-image.imageandmatrix",
+        "title": "Show Image & Matrix",
+        "enablement": "inDebugMode"
+      },
+      {
+        "command": "opencv-image.matrix",
+        "title": "Show Matrix",
         "enablement": "inDebugMode"
       }
     ],
@@ -37,11 +45,17 @@
       "debug/variables/context": [
         {
           "when": "resourceLangId == cpp",
-          "command": "opencv-image.imagevariable",
+          "command": "opencv-image.image",
           "group": "3_compare"
-        },{
+        },
+        {
           "when": "resourceLangId == cpp",
-          "command": "opencv-image.imagematrix",
+          "command": "opencv-image.imageandmatrix",
+          "group": "3_compare"
+        },
+        {
+          "when": "resourceLangId == cpp",
+          "command": "opencv-image.matrix",
           "group": "3_compare"
         }
       ]
@@ -69,6 +83,7 @@
     "typescript": "^5.0.4"
   },
   "dependencies": {
+    "@techstark/opencv-js": "^4.7.0-release.1",
     "jimp": "^0.22.8"
   }
 }
