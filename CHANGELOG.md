@@ -1,5 +1,10 @@
 # What's New?
 
+## 0.1.0
+
+Features Added:
+- Added debug option to print extension sequense.
+
 ## 0.0.9
 
 Features Added:

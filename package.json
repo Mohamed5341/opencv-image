@@ -2,7 +2,7 @@
   "name": "opencv-image",
   "displayName": "OpenCV C++ Image",
   "description": "This is a simple extension to display opencv images while c++ debugging.",
-  "version": "0.0.9",
+  "version": "0.1.0",
   "publisher": "SimpleToolsDev",
   "repository": {
     "type": "git",
@@ -59,7 +59,29 @@
           "group": "3_compare"
         }
       ]
-    }
+    },
+    "configuration": [
+        {
+        "title": "Extension Debug",
+        "properties": {
+          "conf.settingsEditor.debugSettings": {
+            "type": "object",
+            "order": 1,
+            "description": "Specify extension debugging",
+            "properties": {
+              "prop1":{
+                "type": "boolean",
+                "description": "Print debugging text to debug console"
+              }
+            },
+            "additionalProperties": false,
+            "default":{
+              "prop1": false
+            }
+          }
+        }
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",

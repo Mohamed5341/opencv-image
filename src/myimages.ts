@@ -3,31 +3,43 @@ import * as Jimp from 'jimp';
 import * as cv from '@techstark/opencv-js';
 import * as fs from 'fs';
 
+import { printToConsole } from './extension';
+
 export class MyImagesHandler{
     savingLocation: vscode.Uri;
     imagesList: MyImage[] = [];
 
     constructor(path: vscode.Uri){
         this.savingLocation = path;
+        printToConsole("Create image handeler with " + path + " folder to save images");
     }
 
     async addImage(varName: string, varRef: number, showImage: boolean, showMat: boolean){
         const session = vscode.debug.activeDebugSession;
         if(session){
+            printToConsole("Current debug session is: " + session);
+            printToConsole("Requesting from DAP variable with name: " + varName + " and reference: " + varRef);
             const response = await session.customRequest('variables', {variablesReference: varRef});
+            printToConsole("Start Handeling response and check image");
             const currentImg = new MyImage(response, this.savingLocation, varName, varRef);
 
             if(currentImg.valid){
+                printToConsole("Current image is valid to show");
+                printToConsole("Check if current image showed earlier or not");
                 const loc = this.checkImageExists(currentImg);
     
                 if(loc === -1){
+                    printToConsole("Current image is new, adding it to images list");
                     this.imagesList.push(currentImg);
                 }else{
+                    printToConsole("Current image exists, replace it with new one"),
                     this.imagesList[loc] = currentImg;
                 }
     
+                printToConsole("Start reading image from memory using DAP request");
                 await currentImg.readImageFromMemory(showImage, showMat);
             }else{
+                printToConsole("Current image is not initialized");
                 vscode.window.showWarningMessage("Please Initialize variable.");
             }
 
@@ -36,6 +48,7 @@ export class MyImagesHandler{
 
     async deleteAllImages(){
         for(var i = 0; i < this.imagesList.length; i++){
+            printToConsole("deleting image " + this.imagesList[i].variableName + " at " + this.imagesList[i].imagePath);
             this.imagesList[i].deleteImage();
         }
     }
@@ -74,8 +87,10 @@ class MyImage{
     constructor(response: any, folderPath: vscode.Uri, varname: string, varRef: number){
         if("variables" in response){
             const varVal = response.variables;
+            printToConsole("Variable members:");
 
             varVal.forEach(async (element: any) => {
+                printToConsole(element.name + " = " + element.value);
                 const name = element.name;
                 switch (name) {
                     case 'flags':
@@ -102,13 +117,13 @@ class MyImage{
             });
 
             this.imagePath = vscode.Uri.joinPath(folderPath, varname + "_" + varRef + ".jpg");
+            printToConsole("Image path is: " + this.imagePath);
 
             this.variableName = varname + "_" + varRef;
 
             this.type = this.flags&0xFFF;
             if(this.dims !== 0 && this.cols !== 0 && this.rows !== 0){
                 this.valid = true;
-
 
                 if(this.type === cv.CV_8U || this.type === cv.CV_8UC1 || this.type === cv.CV_8UC2 || this.type === cv.CV_8UC3 || this.type === cv.CV_8UC4){
                     this.elementSize = 1;
@@ -140,11 +155,23 @@ class MyImage{
                     this.isFloat = true;
                 }
 
+                printToConsole("Image type is: " + this.type);
+                printToConsole("Image element size: " + this.elementSize);
+                printToConsole("Image element signed: " + this.signed);
+                printToConsole("Image is float: " + this.isFloat);
+
                 const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
+                printToConsole("Image data size is: " + numberOfBytes + " byte");
                 if(this.elementSize !== 0){
                     this.numberOfChannels = numberOfBytes/(this.cols*this.rows*this.elementSize);
+                    printToConsole("Image number of channels are: " + this.numberOfChannels + " channel");
                 }
                 return;
+            }else{
+                printToConsole("Image dimentions are zero");
+                printToConsole("Image dims: " + this.dims);
+                printToConsole("Image cols: " + this.cols);
+                printToConsole("Image rows: " + this.rows);
             }
             
         }
@@ -156,36 +183,55 @@ class MyImage{
         if(session){
             try{
                 const numberOfBytes: number = parseInt(this.endAddress) - parseInt(this.startAddress);
+                printToConsole("Start reading image data starting from: " + this.startAddress + " with " + numberOfBytes + " byte");
                 const response = await session.customRequest('readMemory', {memoryReference: this.startAddress, offset: 0, count: numberOfBytes});
+                printToConsole("data request result is: " + response);
                 let imageArray: number[] = this.decodeImage(response.data);
                 
     
                 if(viewImage && viewMat){
+                    printToConsole("convert array to opencv image");
                     let imageSrc = cv.matFromArray(this.rows, this.cols, this.type, imageArray);
                     if(this.numberOfChannels === 1){
+                        printToConsole("convert image to RGB from gray");
                         cv.cvtColor(imageSrc, imageSrc, cv.COLOR_GRAY2RGB);
                     }
+                    printToConsole("Setting opencv image to jimp");
                     new Jimp({width: this.cols, height: this.rows, data: Buffer.from(imageSrc.data)}).write(this.imagePath.fsPath);
+                    printToConsole("delete opencv image");
                     imageSrc.delete();
                     this.imageSaved = true;
 
+                    printToConsole("Create HTML webview");
                     const panel = vscode.window.createWebviewPanel("imageMat", this.variableName, vscode.ViewColumn.Two);
+                    printToConsole("Setting HTML to webview");
                     panel.webview.html = this.getHtml(panel.webview.asWebviewUri(this.imagePath), imageArray, true);
                 }else if(viewImage){
+                    printToConsole("convert array to opencv image");
                     let imageSrc = cv.matFromArray(this.rows, this.cols, this.type, imageArray);
                     if(this.numberOfChannels === 1){
+                        printToConsole("convert image to RGB from gray");
                         cv.cvtColor(imageSrc, imageSrc, cv.COLOR_GRAY2RGB);
                     }
+                    printToConsole("Setting opencv image to jimp");
                     new Jimp({width: this.cols, height: this.rows, data: Buffer.from(imageSrc.data)}).write(this.imagePath.fsPath);
                     this.imageSaved = true;
+                    printToConsole("Show image");
                     this.showImage();
+                    printToConsole("delete opencv image");
                     imageSrc.delete();
                 }else if(viewMat){
+                    printToConsole("Create HTML webview");
                     const panel = vscode.window.createWebviewPanel("imageMat", this.variableName, vscode.ViewColumn.Two);
+                    printToConsole("Setting HTML to webview");
                     panel.webview.html = this.getHtml(panel.webview.asWebviewUri(this.imagePath), imageArray, false);
                 }
             }catch(e: any){
-                vscode.window.showErrorMessage("Error Handling image" + e);
+                if('message' in e){
+                    vscode.window.showErrorMessage("Error Handling image " + e.message);
+                }else{
+                    vscode.window.showErrorMessage("Error Handling image " + e);
+                }
             }
         }
     }
@@ -196,7 +242,6 @@ class MyImage{
         tablesString += "<table><thead><tr><th>#</th><th>" + Array.from({length: this.cols}, (value, index) => index).join("</th><th>") + "</th></tr></thead><tbody>";
         
         for(var j = 0; j < this.rows; j++){
-            
             const currentRawStartIndex = j*this.cols;
             const currentRawEndIndex = currentRawStartIndex + this.cols*this.numberOfChannels;
             let rowElements = [];
@@ -314,8 +359,10 @@ class MyImage{
         }
 
         if(initialized){
+            printToConsole("Image buffer is converted successfully");
             return result;
         }
+        printToConsole("Image buffer cannot be converted");
         return [];
     }
 
@@ -346,6 +393,7 @@ class MyImage{
     deleteImage(){
         try{
             if(fs.existsSync(this.imagePath.fsPath)){
+                printToConsole("Deleting: " + this.imagePath);
                 vscode.workspace.fs.delete(this.imagePath);
             }
         }catch{
