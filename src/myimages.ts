@@ -196,6 +196,13 @@ class MyImage{
                         printToConsole("convert image to RGB from gray");
                         cv.cvtColor(imageSrc, imageSrc, cv.COLOR_GRAY2RGB);
                     }
+
+                    if(this.numberOfChannels === 3){
+                        cv.cvtColor(imageSrc, imageSrc, cv.COLOR_BGR2RGB);
+                    }else if(this .numberOfChannels === 4){
+                        cv.cvtColor(imageSrc, imageSrc, cv.COLOR_BGRA2RGBA);
+                    }
+
                     printToConsole("Setting opencv image to jimp");
                     new Jimp({width: this.cols, height: this.rows, data: Buffer.from(imageSrc.data)}).write(this.imagePath.fsPath);
                     printToConsole("delete opencv image");
@@ -213,6 +220,13 @@ class MyImage{
                         printToConsole("convert image to RGB from gray");
                         cv.cvtColor(imageSrc, imageSrc, cv.COLOR_GRAY2RGB);
                     }
+
+                    if(this.numberOfChannels === 3){
+                        cv.cvtColor(imageSrc, imageSrc, cv.COLOR_BGR2RGB);
+                    }else if(this .numberOfChannels === 4){
+                        cv.cvtColor(imageSrc, imageSrc, cv.COLOR_BGRA2RGBA);
+                    }
+
                     printToConsole("Setting opencv image to jimp");
                     new Jimp({width: this.cols, height: this.rows, data: Buffer.from(imageSrc.data)}).write(this.imagePath.fsPath);
                     this.imageSaved = true;
