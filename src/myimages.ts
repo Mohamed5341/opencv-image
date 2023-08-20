@@ -301,10 +301,10 @@ class MyImage{
                     top: 0;
                     z-index: 1;
                     width: 25vw;
-                    background: white;
+                    background: var(--vscode-editor-background);
                 }
                 table td {
-                    background: #fff;
+                    background: var(--vscode-editor-background);
                     padding: 4px 5px;
                     text-align: center;
                 }
@@ -323,7 +323,7 @@ class MyImage{
                 table tbody th {
                     position: sticky;
                     left: 0;
-                    background: white;
+                    background: var(--vscode-editor-background);
                     z-index: 1;
                 }
             </style>
