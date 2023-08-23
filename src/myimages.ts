@@ -288,11 +288,11 @@ class MyImage{
                     border-collapse: separate;
                     border-spacing: 0;
                     table-layout: fixed;
-                    border: 1px solid black;
+                    border: 1px solid var(--vscode-tree-tableColumnsBorder);
                 }
                 table td,
                 table th {
-                    border: 1px solid black;
+                    border: 1px solid var(--vscode-tree-tableColumnsBorder);
                     padding: 0.5rem 1rem;
                 }
                 table thead th {
