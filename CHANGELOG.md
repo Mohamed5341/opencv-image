@@ -1,5 +1,13 @@
 # What's New?
 
+## 0.1.1
+
+Bug Fixes:
+- Converts BGR images to RGB.
+
+Features Added:
+- Matrix view appearance modified.
+
 ## 0.1.0
 
 Features Added:
