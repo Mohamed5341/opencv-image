@@ -4,6 +4,7 @@
   "description": "This is a simple extension to display opencv images while c++ debugging.",
   "version": "0.1.0",
   "publisher": "SimpleToolsDev",
+  "icon": "logo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Mohamed5341/opencv-image.git"
