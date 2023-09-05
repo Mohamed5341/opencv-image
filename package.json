@@ -2,7 +2,7 @@
   "name": "opencv-image",
   "displayName": "OpenCV C++ Image",
   "description": "This is a simple extension to display opencv images while c++ debugging.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "SimpleToolsDev",
   "icon": "logo.png",
   "repository": {
